@@ -1,0 +1,106 @@
+For those who are trying to implement evaluator,
+here is additional tips:
+
+A fresh name generator:
+
+object fresh {
+  var cnt = 0
+  def new_name(v:String):String = {
+    cnt = cnt+1
+    val new_n = "_"+v+"_"+(cnt.toString)
+    new_n
+  }
+}
+
+A procedure for renaming:
+
+
+def rename(v:String,vn:String,t:Term): Term = {
+    t match {
+      case Var(n) => 
+        if (v==n) Var(vn)
+        else t
+      case Fun(arg,body) => {
+        if (v==arg) t // no change
+        else Fun(arg,rename(v,vn,body))
+      }
+      case FApp(t1,t2) => 
+        FApp(rename(v,vn,t1),rename(v,vn,t2))
+      case Let(w,t1,t2) => {
+        val n_t1 = rename(v,vn,t1)
+        if (v==w) Let(w,n_t1,t2)
+        else Let(w,n_t1,rename(v,vn,t2))
+      }
+    }
+}
+
+
+Some test cases:
+
+
+  def test_eval(s:String) {
+    try {
+      val term = parse_lambda(s)
+      println("Input      :"+s)
+      println("Parsed Term:"+term)
+      term match {
+        case Some(t) => {
+          val term1 = eval_to_value(t)
+          println("Eval Value :"+term1)
+        }
+        case None => ()
+      }
+    } catch {
+      case parseErr(s) => println("Parser error:"+s)
+      case lexErr(s) => println("Lexer error:"+s)
+    }
+  }
+  val ex_5 = """(\ x . x) x"""
+  val ex_6 = """(\ x . x y)  x"""
+  val ex_7 = """let y=hello in hello y"""
+  val ex_8 = """let y=\x. x in y y"""
+  test_eval(ex_5)
+  test_eval(ex_6)
+  test_eval(ex_7)
+  test_eval(ex_8)
+  val ex_9a = """(\ x . (\y. y x) x) (\z. z)"""
+  val ex_9b = """let id = \x.x in id id"""
+  val ex_9c = """(\y . (\ x . x y)) (x x)"""
+  val ex_9d = """(\y . (\ x . x y) z)"""
+  val ex_9e = """(let id = \x.x in id id) y"""
+  test_eval(ex_9a)
+  test_eval(ex_9b)
+  test_eval(ex_9c)
+  test_eval(ex_9d)
+  test_eval(ex_9e)
+
+Expected Outputs:
+
+
+Input      :(\ x . x) x
+Parsed Term:Some(FApp(Fun(x,Var(x)),Var(x)))
+Eval Value :Var(x)
+Input      :(\ x . x y)  x
+Parsed Term:Some(FApp(Fun(x,FApp(Var(x),Var(y))),Var(x)))
+Eval Value :FApp(Var(x),Var(y))
+Input      :let y=hello in hello y
+Parsed Term:Some(Let(y,Var(hello),FApp(Var(hello),Var(y))))
+Eval Value :FApp(Var(hello),Var(hello))
+Input      :let y=\x. x in y y
+Parsed Term:Some(Let(y,Fun(x,Var(x)),FApp(Var(y),Var(y))))
+Eval Value :Fun(x,Var(x))
+Input      :(\ x . (\y. y x) x) (\z. z)
+Parsed Term:Some(FApp(Fun(x,FApp(Fun(y,FApp(Var(y),Var(x))),Var(x))),Fun(z,Var(z))))
+Eval Value :Fun(z,Var(z))
+Input      :let id = \x.x in id id
+Parsed Term:Some(Let(id,Fun(x,Var(x)),FApp(Var(id),Var(id))))
+Eval Value :Fun(x,Var(x))
+Input      :(\y . (\ x . x y)) (x x)
+Parsed Term:Some(FApp(Fun(y,Fun(x,FApp(Var(x),Var(y)))),FApp(Var(x),Var(x))))
+Eval Value :Fun(_x_1,FApp(Var(_x_1),FApp(Var(x),Var(x))))
+Input      :(\y . (\ x . x y) z)
+Parsed Term:Some(Fun(y,FApp(Fun(x,FApp(Var(x),Var(y))),Var(z))))
+Eval Value :Fun(y,FApp(Fun(x,FApp(Var(x),Var(y))),Var(z)))
+Input      :(let id = \x.x in id id) y
+Parsed Term:Some(FApp(Let(id,Fun(x,Var(x)),FApp(Var(id),Var(id))),Var(y)))
+Eval Value :Var(y)
